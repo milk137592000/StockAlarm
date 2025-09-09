@@ -15,22 +15,32 @@ const STOCK_METADATA = {
 
 // --- Helper Functions ---
 
-const sendLineNotify = async (message: string, token: string): Promise<void> => {
-  if (!token) return;
+const sendLinePushMessage = async (message: string): Promise<void> => {
+  const token = process.env.CHANNEL_ACCESS_TOKEN;
+  const userId = process.env.USER_ID;
+
+  if (!token || !userId) {
+      console.error('CHANNEL_ACCESS_TOKEN or USER_ID is not set in environment variables.');
+      return;
+  }
+  
   try {
-    const response = await fetch('https://notify-api.line.me/api/notify', {
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: `message=${encodeURIComponent(message)}`,
+      body: JSON.stringify({
+        to: userId,
+        messages: [{ type: 'text', text: message }],
+      }),
     });
     if (!response.ok) {
-        console.error('Line Notify API error:', await response.json());
+        console.error('LINE Messaging API error:', await response.json());
     }
   } catch (error) {
-    console.error('Failed to send Line Notify:', error);
+    console.error('Failed to send LINE Push Message:', error);
   }
 };
 
@@ -104,6 +114,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.headers['authorization'] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).end('Unauthorized');
   }
+  
+  // Check for credentials early
+  if (!process.env.CHANNEL_ACCESS_TOKEN || !process.env.USER_ID) {
+      console.error('CRITICAL: Messaging API credentials are not configured in environment variables.');
+      // Do not send a LINE message here, as we can't. Just log and exit.
+      return res.status(500).send('Server configuration error: Missing API credentials.');
+  }
 
   const todayStr = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' })).toISOString().split('T')[0];
   
@@ -117,11 +134,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const lineToken = await kv.get<string>('lineNotifyToken');
-    if (!lineToken) {
-        return res.status(400).send('Line Notify Token not set. Aborting.');
-    }
-    
     let cumulativeTwiiDrop = await kv.get<number>('cumulativeTwiiDrop') || 0;
     const lastProcessedDayForBleed = await kv.get<string>('lastProcessedDayForBleed') || '';
     const notifiedToday = new Set(await kv.get<string[]>('notifiedToday') || []);
@@ -194,7 +206,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // --- Send Notifications & Update State ---
     if (alertsToSend.length > 0) {
       const fullMessage = `\n===== 股市監控警報 =====\n` + alertsToSend.join('\n');
-      await sendLineNotify(fullMessage, lineToken);
+      await sendLinePushMessage(fullMessage);
     }
     
     await kv.set('cumulativeTwiiDrop', cumulativeTwiiDrop);
@@ -204,8 +216,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error('Monitoring job failed:', error);
     if (error instanceof Error) {
-        const lineToken = await kv.get<string>('lineNotifyToken');
-        if (lineToken) await sendLineNotify(`監控腳本執行失敗: ${error.message}`, lineToken);
+        await sendLinePushMessage(`監控腳本執行失敗: ${error.message}`);
     }
     res.status(500).json({ success: false, message: 'An internal error occurred.' });
   }
