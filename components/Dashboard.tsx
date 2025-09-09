@@ -1,56 +1,17 @@
 import React from 'react';
-import type { StockData } from '../types';
-import { StockSymbol } from '../types';
-import StockCard from './StockCard';
 import { InfoIcon } from './icons/InfoIcon';
 
-interface DashboardProps {
-  stocks: StockData[];
-  cumulativeTwiiDrop: number;
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ stocks, cumulativeTwiiDrop }) => {
-  const twii = stocks.find(s => s.symbol === StockSymbol.TWII);
-  const etfs = stocks.filter(s => s.symbol !== StockSymbol.TWII);
-
+const Dashboard: React.FC = () => {
   return (
-    <div className="bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-bold mb-4 text-white">市場狀態</h2>
-      
-      {twii && (
-        <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-2 text-gray-300">大盤指數</h3>
-            <StockCard stock={twii} />
-            <div className="mt-4 bg-gray-700/50 p-3 rounded-md flex items-center gap-3">
-              <InfoIcon className="w-5 h-5 text-blue-400 shrink-0"/>
-              {twii.price === 0 ? (
-                <div>
-                  <h4 className="font-semibold text-sm">慢性失血計數器</h4>
-                  <p className="text-sm text-gray-400">等待大盤資料載入...</p>
-                </div>
-              ) : (
-                <div>
-                  <h4 className="font-semibold text-sm">慢性失血計數器</h4>
-                  <p className={`text-lg font-mono ${cumulativeTwiiDrop > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {cumulativeTwiiDrop.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    若大盤收紅則重置。累計跌點超過 300 點將觸發警報。
-                  </p>
-                </div>
-              )}
-            </div>
-        </div>
-      )}
-      
-      <div>
-        <h3 className="text-lg font-semibold mb-2 text-gray-300">監控中的 ETF</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {etfs.map(stock => (
-            <StockCard key={stock.symbol} stock={stock} />
-          ))}
-        </div>
-      </div>
+    <div className="bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg h-full flex flex-col justify-center items-center">
+      <InfoIcon className="w-16 h-16 text-blue-500 mb-4" />
+      <h2 className="text-2xl font-bold mb-2 text-white text-center">監控服務在後端運行</h2>
+      <p className="text-gray-400 max-w-md text-center">
+        我們的 Cron Job 會每分鐘自動檢查市場狀況。當符合您設定的條件時，將會立即透過 Line Notify 向您發送警報。
+      </p>
+       <p className="text-gray-400 max-w-md text-center mt-2">
+        此頁面僅用於設定您的通知權杖。
+      </p>
     </div>
   );
 };

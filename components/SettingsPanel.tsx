@@ -1,42 +1,53 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CogIcon } from './icons/CogIcon';
 
 const SettingsPanel: React.FC = () => {
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [message, setMessage] = useState('請輸入您的 Line Notify 權杖以啟用通知。');
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('lineNotifyToken');
-    if (storedToken) {
-      setToken(storedToken);
-    }
-  }, []);
-
-  const handleSave = () => {
+  const handleSave = async () => {
     setStatus('saving');
-    // In a real app, this would be an API call to a secure backend.
-    // For this simulation, we use localStorage.
     try {
-      localStorage.setItem('lineNotifyToken', token);
-      setTimeout(() => setStatus('saved'), 500);
+      const response = await fetch('/api/save-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || '儲存失敗');
+      }
+      
+      setStatus('saved');
+      setMessage('權杖已更新！後端監控服務將使用此權杖發送通知。');
+      setToken(''); // Clear input after successful save for security
+
     } catch (e) {
       console.error("Failed to save token:", e);
       setStatus('error');
+      setMessage(e instanceof Error ? e.message : '發生未知錯誤。');
     } finally {
-      setTimeout(() => setStatus('idle'), 2500); // Reset status after a few seconds
+      setTimeout(() => {
+        if (status !== 'error') { // Don't clear error message immediately
+            setStatus('idle');
+            setMessage('請輸入您的 Line Notify 權杖以啟用通知。');
+        }
+      }, 3000);
     }
   };
 
-  const getStatusMessage = () => {
+  const getMessageColor = () => {
     switch (status) {
-      case 'saved': return { text: '權杖儲存成功。', color: 'text-green-400' };
-      case 'error': return { text: '權杖儲存失敗。', color: 'text-red-400' };
-      default: return { text: '變更將儲存於本機。', color: 'text-gray-400' };
+      case 'saved': return 'text-green-400';
+      case 'error': return 'text-red-400';
+      default: return 'text-gray-400';
     }
   };
-  
-  const { text, color } = getStatusMessage();
 
   return (
     <div className="bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
@@ -60,12 +71,12 @@ const SettingsPanel: React.FC = () => {
         </div>
         <button
           onClick={handleSave}
-          disabled={status === 'saving'}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-md transition duration-300"
+          disabled={status === 'saving' || !token}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-md transition duration-300"
         >
           {status === 'saving' ? '儲存中...' : '儲存權杖'}
         </button>
-        <p className={`text-xs text-center h-4 ${color}`}>{text}</p>
+        <p className={`text-xs text-center h-4 transition-colors duration-300 ${getMessageColor()}`}>{message}</p>
       </div>
     </div>
   );
