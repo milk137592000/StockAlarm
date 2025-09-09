@@ -1,0 +1,5 @@
+{
+  "name": "Taiwan Stock Market Monitor",
+  "description": "A dashboard to monitor the Taiwan stock market for specific index and ETF triggers, with simulated alerts. This application provides a user interface to configure a monitoring service and view its status and logs.",
+  "requestFramePermissions": []
+}
