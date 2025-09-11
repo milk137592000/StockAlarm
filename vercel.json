@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/monitor.ts": {
+      "runtime": "@vercel/node"
+    }
+  },
   "crons": [
     {
       "path": "/api/monitor",
