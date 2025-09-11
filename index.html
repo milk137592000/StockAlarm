@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHN0eWxlPi5pe2ZpbGw6Y3VycmVudENvbG9yO3N0cm9rZTpjdXJyZW50Q29sb3J9PC9zdHlsZT48ZyBjbGFzcz0iaSI+PHJlY3QgeD0iMyIgeT0iMTQiIHdpZHRoPSI0IiBoZWlnaHQ9IjYiLz48cmVjdCB4PSIxMCIgeT0iMTAiIHdpZHRoPSI0IiBoZWlnaHQ9IjEwIi8+PHJlY3QgeD0iMTciIHk9IjUiIHdpZHRoPSI0IiBoZWlnaHQ9IjE1Ii8+PHBhdGggZD0iTTMgMTJMOSA2TDE1IDEwTDIxIDMiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMS41Ii8+PHBhdGggZD0iTTE4IDNMMjEgM0wyMSA2IiBmaWxsPSJub25lIiBzdHJva2Utd2lkdGg9IjEuNSIvPjwvZz48L3N2Zz4=" />
-    <meta name="viewport" content="width=device-width, initial-scale-1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Taiwan Stock Market Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,10 +25,9 @@
 <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.3.22",
-    "@vercel/kv": "https://aistudiocdn.com/@vercel/kv@^3.0.0",
     "vite": "https://aistudiocdn.com/vite@^7.1.5",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.2",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
@@ -38,6 +37,6 @@
 </head>
   <body class="bg-gray-900 text-gray-200">
     <div id="root"></div>
-    <script type="module" src="/src/index.tsx"></script>
+    <script type="module" src="./src/index.tsx"></script>
   </body>
 </html>
