@@ -1,6 +1,7 @@
 
 import React from 'react';
 import Dashboard from './components/Dashboard';
+import AlertLog from './components/AlertLog';
 
 const App: React.FC = () => {
   return (
