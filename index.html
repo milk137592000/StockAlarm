@@ -22,20 +22,22 @@
         }
       }
     </script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "@vercel/kv": "https://aistudiocdn.com/@vercel/kv@^3.0.0",
-    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.3.21"
+    "vite": "https://aistudiocdn.com/vite@^7.1.5",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.2",
+    "@vercel/node": "https://aistudiocdn.com/@vercel/node@^5.3.22",
+    "@vercel/kv": "https://aistudiocdn.com/@vercel/kv@^3.0.0"
   }
 }
 </script>
 </head>
   <body class="bg-gray-900 text-gray-200">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
