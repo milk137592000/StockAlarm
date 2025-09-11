@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { kv } from '@vercel/kv';
-import { StockSymbol, type StockData, AlertCondition } from '../../shared/types';
-import { isTradingHours } from '../../shared/utils/time';
-import { calculateRSI, calculateSMA } from '../../shared/services/indicatorService';
+import { StockSymbol, type StockData, AlertCondition } from '../shared/types';
+import { isTradingHours } from '../shared/utils/time';
+import { calculateRSI, calculateSMA } from '../shared/services/indicatorService';
 
 // --- Configuration ---
 const STOCK_METADATA = {
