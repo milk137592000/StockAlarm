@@ -1,22 +1,8 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
   "crons": [
     {
       "path": "/api/monitor",
       "schedule": "* * * * *"
     }
-  ],
-  "functions": {
-    "api/monitor.ts": {
-      "runtime": "@vercel/node"
-    },
-    "api/save-settings.ts": {
-      "runtime": "@vercel/node"
-    },
-    "api/save-token.ts": {
-      "runtime": "@vercel/node"
-    }
-  }
+  ]
 }
