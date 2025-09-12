@@ -24,9 +24,12 @@ const mapYahooResponseToStockData = (quote: any): Omit<StockData, 'history' | 'r
 const calculateIndicators = (stock: StockData): StockData => {
   if (stock.history.length === 0) return stock;
 
+  // Use historical daily closes for long-term indicators
   const closePrices = stock.history.map(h => h.close);
   const ma20 = calculateSMA(closePrices, 20);
   const rsi = calculateRSI(closePrices, 14);
+
+  // BIAS uses the latest price against the historical moving average
   const bias = ma20 > 0 ? ((stock.price - ma20) / ma20) * 100 : 0;
 
   return { ...stock, ma20, rsi, bias };
@@ -35,15 +38,29 @@ const calculateIndicators = (stock: StockData): StockData => {
 const fetchDataWithProxy = async (targetUrl: string) => {
     const proxyUrl = `${CORS_PROXY_BASE}${encodeURIComponent(targetUrl)}`;
     try {
-        const response = await fetch(proxyUrl);
+        const response = await fetch(proxyUrl, {
+            headers: { 'Accept': 'application/json' }
+        });
+
         if (!response.ok) {
             const errorBody = await response.text();
-            throw new Error(`API Error ${response.status}: ${response.statusText}. Details: ${errorBody.slice(0, 200)}`);
+            throw new Error(`Proxy API Error ${response.status}: ${response.statusText}. Details: ${errorBody.slice(0, 200)}`);
         }
-        return await response.json();
+        
+        const textContent = await response.text();
+        if (!textContent) {
+            throw new Error('Empty response from proxy');
+        }
+
+        // The response from the proxy is the raw text from the target URL, which should be JSON.
+        return JSON.parse(textContent);
+
     } catch (e) {
+        if (e instanceof SyntaxError) {
+            throw new Error(`Failed to parse JSON response from proxy. This might be an API error page.`);
+        }
         if (e instanceof Error) {
-           throw new Error(`Network request failed. The CORS proxy or target API may be down. ${e.message}`);
+           throw new Error(`Network request failed via proxy. Proxy or target API may be down. Original error: ${e.message}`);
         }
         throw new Error('An unknown network error occurred.');
     }
@@ -103,18 +120,16 @@ export const updateStockPrices = async (currentData: StockData[]): Promise<Stock
         const updatedQuote = quotes.find((q: any) => q.symbol === stock.symbol);
         if (!updatedQuote) return stock;
 
-        const newPrice = updatedQuote.regularMarketPrice || stock.price;
-        
-        const newHistory = stock.history.length > 0 ? [{ close: newPrice }, ...stock.history].slice(0, 50) : [{ close: newPrice }];
-
+        // Create a new stock object with updated price data, but preserve the original history.
         const updatedStock: StockData = {
             ...stock,
-            price: newPrice,
+            price: updatedQuote.regularMarketPrice || stock.price,
             change: updatedQuote.regularMarketChange || 0,
             changePercent: updatedQuote.regularMarketChangePercent || 0,
-            history: newHistory,
+            // The crucial fix: Do NOT modify the original daily 'history' array with intra-day prices.
         };
 
+        // Recalculate indicators using the new price and the UNCHANGED historical data.
         return calculateIndicators(updatedStock);
     });
 };
