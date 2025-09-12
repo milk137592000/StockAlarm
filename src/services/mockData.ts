@@ -1,5 +1,5 @@
-import { StockSymbol, StockData } from '../../../shared/types';
-import { calculateRSI, calculateSMA } from '../../../shared/services/indicatorService';
+import { StockSymbol, StockData } from '../../shared/types';
+import { calculateRSI, calculateSMA } from '../../shared/services/indicatorService';
 
 // FIX: Updated function signature to return { close: number }[] to match the StockData['history'] type.
 const generateRandomHistory = (startPrice: number, days: number): { close: number }[] => {

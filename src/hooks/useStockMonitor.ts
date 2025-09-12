@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { StockData } from '../../../shared/types';
+import { StockData } from '../../shared/types';
 import { generateInitialStockData, updateStockData } from '../services/mockData';
 
 export const useStockMonitor = () => {

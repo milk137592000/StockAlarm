@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { StockData } from '../../../shared/types';
+import { StockData } from '../../shared/types';
 import StockCard from './StockCard';
 import { ClockIcon } from './icons/ClockIcon';
 

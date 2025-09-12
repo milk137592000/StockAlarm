@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { StockData } from '../../../shared/types';
+import { StockData } from '../../shared/types';
 import { ArrowUpIcon } from './icons/ArrowUpIcon';
 import { ArrowDownIcon } from './icons/ArrowDownIcon';
 
