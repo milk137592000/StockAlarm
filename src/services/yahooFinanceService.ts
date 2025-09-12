@@ -1,7 +1,6 @@
 import { StockSymbol, StockData } from '../../shared/types';
 import { calculateRSI, calculateSMA } from '../../shared/services/indicatorService';
 
-const CORS_PROXY_BASE = 'https://api.allorigins.win/raw?url=';
 const SYMBOLS = [
   StockSymbol.TWII,
   StockSymbol.ETF_0050,
@@ -35,43 +34,25 @@ const calculateIndicators = (stock: StockData): StockData => {
   return { ...stock, ma20, rsi, bias };
 };
 
-const fetchDataWithProxy = async (targetUrl: string) => {
-    const proxyUrl = `${CORS_PROXY_BASE}${encodeURIComponent(targetUrl)}`;
-    try {
-        const response = await fetch(proxyUrl, {
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Proxy API Error ${response.status}: ${response.statusText}. Details: ${errorBody.slice(0, 200)}`);
-        }
-        
-        const textContent = await response.text();
-        if (!textContent) {
-            throw new Error('Empty response from proxy');
-        }
-
-        // The response from the proxy is the raw text from the target URL, which should be JSON.
-        return JSON.parse(textContent);
-
-    } catch (e) {
-        if (e instanceof SyntaxError) {
-            throw new Error(`Failed to parse JSON response from proxy. This might be an API error page.`);
-        }
-        if (e instanceof Error) {
-           throw new Error(`Network request failed via proxy. Proxy or target API may be down. Original error: ${e.message}`);
-        }
-        throw new Error('An unknown network error occurred.');
+// Generic fetcher for our internal Vercel API
+const fetchFromApi = async (endpoint: 'quote' | 'chart', params: Record<string, string>) => {
+    const queryString = new URLSearchParams({ endpoint, ...params }).toString();
+    const response = await fetch(`/api/yahoo?${queryString}`);
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+        console.error(`API Error for ${endpoint}:`, errorData);
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
     }
-};
+    
+    return response.json();
+}
 
 // Fetches both quote and historical chart data
 export const fetchInitialStockData = async (): Promise<StockData[]> => {
     const symbolsString = SYMBOLS.join(',');
-    const quoteTargetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsString}`;
+    const quoteData = await fetchFromApi('quote', { symbols: symbolsString });
 
-    const quoteData = await fetchDataWithProxy(quoteTargetUrl);
     if (!quoteData.quoteResponse || !quoteData.quoteResponse.result) {
         throw new Error('Invalid data structure received from Yahoo Finance quote API.');
     }
@@ -80,11 +61,10 @@ export const fetchInitialStockData = async (): Promise<StockData[]> => {
     const detailedDataPromises = quotes.map(async (quote: any) => {
         const baseData = mapYahooResponseToStockData(quote);
         
-        // Fetch historical data for indicators
-        const chartTargetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${quote.symbol}?range=3mo&interval=1d`;
         try {
-            const chartData = await fetchDataWithProxy(chartTargetUrl);
+            const chartData = await fetchFromApi('chart', { symbol: quote.symbol });
             const closes = chartData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+
             if (!closes) {
                  console.warn(`Could not parse history for ${quote.symbol}`);
                  return { ...baseData, history: [] };
@@ -97,7 +77,7 @@ export const fetchInitialStockData = async (): Promise<StockData[]> => {
             return calculateIndicators(stockWithHistory);
         } catch (e) {
             console.error(`Error fetching chart for ${quote.symbol}:`, e);
-            return { ...baseData, history: [] }; // Fallback with no history
+            return calculateIndicators({ ...baseData, history: [] }); // Fallback with no history
         }
     });
 
@@ -107,29 +87,30 @@ export const fetchInitialStockData = async (): Promise<StockData[]> => {
 // Fetches only the latest quote for faster updates
 export const updateStockPrices = async (currentData: StockData[]): Promise<StockData[]> => {
     const symbolsString = SYMBOLS.join(',');
-    const quoteTargetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsString}`;
     
-    const data = await fetchDataWithProxy(quoteTargetUrl);
-    if (!data.quoteResponse || !data.quoteResponse.result) {
-        console.error('Invalid data structure received on update.');
-        return currentData; // Return old data on failure
+    try {
+        const data = await fetchFromApi('quote', { symbols: symbolsString });
+        if (!data.quoteResponse || !data.quoteResponse.result) {
+            console.error('Invalid data structure received on update.');
+            return currentData; // Return old data on failure
+        }
+        const quotes = data.quoteResponse.result;
+
+        return currentData.map(stock => {
+            const updatedQuote = quotes.find((q: any) => q.symbol === stock.symbol);
+            if (!updatedQuote) return stock;
+
+            const updatedStock: StockData = {
+                ...stock,
+                price: updatedQuote.regularMarketPrice || stock.price,
+                change: updatedQuote.regularMarketChange || 0,
+                changePercent: updatedQuote.regularMarketChangePercent || 0,
+            };
+
+            return calculateIndicators(updatedStock);
+        });
+    } catch (error) {
+        console.error("Failed to update stock prices via API:", error);
+        return currentData; // On update failure, return existing data to avoid UI crash
     }
-    const quotes = data.quoteResponse.result;
-
-    return currentData.map(stock => {
-        const updatedQuote = quotes.find((q: any) => q.symbol === stock.symbol);
-        if (!updatedQuote) return stock;
-
-        // Create a new stock object with updated price data, but preserve the original history.
-        const updatedStock: StockData = {
-            ...stock,
-            price: updatedQuote.regularMarketPrice || stock.price,
-            change: updatedQuote.regularMarketChange || 0,
-            changePercent: updatedQuote.regularMarketChangePercent || 0,
-            // The crucial fix: Do NOT modify the original daily 'history' array with intra-day prices.
-        };
-
-        // Recalculate indicators using the new price and the UNCHANGED historical data.
-        return calculateIndicators(updatedStock);
-    });
 };
