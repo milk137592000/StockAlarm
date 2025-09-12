@@ -1,12 +1,13 @@
 import { StockSymbol, StockData } from '../../shared/types';
 import { calculateRSI, calculateSMA } from '../../shared/services/indicatorService';
 
+// Fix: Replaced non-existent stock symbols with valid ones from the StockSymbol enum.
 const SYMBOLS = [
-  StockSymbol.TWII,
   StockSymbol.ETF_0050,
+  StockSymbol.ETF_0056,
   StockSymbol.ETF_00878,
   StockSymbol.ETF_00646,
-  StockSymbol.ETF_00933B
+  StockSymbol.ETF_00929
 ];
 
 // Helper to map Yahoo's response to our StockData type

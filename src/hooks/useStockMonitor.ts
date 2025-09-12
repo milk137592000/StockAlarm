@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { StockData } from '../../shared/types';
-import { fetchInitialStockData, updateStockPrices } from '../services/yahooFinanceService';
+import { fetchInitialStockData, updateStockPrices } from '../services/financeService';
 
 export const useStockMonitor = () => {
   const [stockData, setStockData] = useState<StockData[]>([]);
@@ -9,6 +9,7 @@ export const useStockMonitor = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -16,48 +17,65 @@ export const useStockMonitor = () => {
         setLoading(true);
         setError(null);
         const initialData = await fetchInitialStockData();
-        setStockData(initialData);
-        setLastUpdated(new Date());
+        if (isMountedRef.current) {
+          setStockData(initialData);
+          setLastUpdated(new Date());
+        }
       } catch (e) {
         console.error("Failed to load initial stock data:", e);
-        setError(e instanceof Error ? e.message : "An unknown error occurred.");
+        if (isMountedRef.current) {
+          setError(e instanceof Error ? e.message : "An unknown error occurred.");
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     loadInitialData();
 
-    // Cleanup function to clear timeout on unmount
     return () => {
+      isMountedRef.current = false;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
   }, []);
-
-  // A separate effect for polling, which starts after the initial data is loaded
+  
   useEffect(() => {
-    // Don't start polling if there's no data or we are in a loading/error state
     if (loading || error || stockData.length === 0) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       return;
     }
 
-    const update = async () => {
-      try {
-        const updatedData = await updateStockPrices(stockData);
-        setStockData(updatedData);
-        setLastUpdated(new Date());
-      } catch (e) {
-        console.error("Failed to update stock prices:", e);
-        // Fail silently and try again on the next interval
+    const scheduleUpdate = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = window.setTimeout(async () => {
+        try {
+          const updatedData = await updateStockPrices(stockData);
+          if (isMountedRef.current) {
+            setStockData(updatedData);
+            setLastUpdated(new Date());
+          }
+        } catch (e) {
+          console.error("Failed to update stock prices:", e);
+        } finally {
+          if(isMountedRef.current) {
+            scheduleUpdate();
+          }
+        }
+      }, 15000); // Poll every 15 seconds
+    };
+
+    scheduleUpdate();
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
-    
-    // Set a timeout for the next update
-    timeoutRef.current = window.setTimeout(update, 15000);
-
-  }, [stockData, loading, error]); // Rerun this effect when data changes
+  }, [stockData, loading, error]);
 
   return { stockData, lastUpdated, loading, error };
 };

@@ -17,14 +17,14 @@ const App: React.FC = () => {
         
         <main className="w-full">
           {loading ? (
-            <div className="text-center text-gray-400">正在從 Yahoo 股市載入即時資料...</div>
+            <div className="text-center text-gray-400">正在從 Alpha Vantage 載入即時資料...</div>
           ) : (
             <Dashboard stockData={stockData} lastUpdated={lastUpdated} error={error} />
           )}
         </main>
 
         <footer className="text-center mt-8 text-gray-600 text-sm">
-          <p>資料來源：Yahoo Finance。實際投資請參考真實報價。</p>
+          <p>資料來源：Alpha Vantage。實際投資請參考真實報價。</p>
         </footer>
       </div>
     </div>

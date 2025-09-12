@@ -1,9 +1,9 @@
 export enum StockSymbol {
-  TWII = '^TWII',
   ETF_0050 = '0050.TW',
-  ETF_00646 = '00646.TW',
+  ETF_0056 = '0056.TW',
   ETF_00878 = '00878.TW',
-  ETF_00933B = '00933B.TWO',
+  ETF_00646 = '00646.TW',
+  ETF_00929 = '00929.TW',
 }
 
 export interface StockData {
