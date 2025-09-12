@@ -1,7 +1,7 @@
 import { StockSymbol, StockData } from '../../shared/types';
 import { calculateRSI, calculateSMA } from '../../shared/services/indicatorService';
 
-const CORS_PROXY = 'https://corsproxy.io/?';
+const CORS_PROXY_BASE = 'https://api.allorigins.win/raw?url=';
 const SYMBOLS = [
   StockSymbol.TWII,
   StockSymbol.ETF_0050,
@@ -32,41 +32,55 @@ const calculateIndicators = (stock: StockData): StockData => {
   return { ...stock, ma20, rsi, bias };
 };
 
+const fetchDataWithProxy = async (targetUrl: string) => {
+    const proxyUrl = `${CORS_PROXY_BASE}${encodeURIComponent(targetUrl)}`;
+    try {
+        const response = await fetch(proxyUrl);
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`API Error ${response.status}: ${response.statusText}. Details: ${errorBody.slice(0, 200)}`);
+        }
+        return await response.json();
+    } catch (e) {
+        if (e instanceof Error) {
+           throw new Error(`Network request failed. The CORS proxy or target API may be down. ${e.message}`);
+        }
+        throw new Error('An unknown network error occurred.');
+    }
+};
+
 // Fetches both quote and historical chart data
 export const fetchInitialStockData = async (): Promise<StockData[]> => {
     const symbolsString = SYMBOLS.join(',');
-    const quoteUrl = `${CORS_PROXY}https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsString}`;
+    const quoteTargetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsString}`;
 
-    const quoteResponse = await fetch(quoteUrl);
-    if (!quoteResponse.ok) {
-        throw new Error(`Yahoo API (Quote) Error: ${quoteResponse.statusText}`);
+    const quoteData = await fetchDataWithProxy(quoteTargetUrl);
+    if (!quoteData.quoteResponse || !quoteData.quoteResponse.result) {
+        throw new Error('Invalid data structure received from Yahoo Finance quote API.');
     }
-    const quoteData = await quoteResponse.json();
     const quotes = quoteData.quoteResponse.result;
 
     const detailedDataPromises = quotes.map(async (quote: any) => {
         const baseData = mapYahooResponseToStockData(quote);
         
         // Fetch historical data for indicators
-        const chartUrl = `${CORS_PROXY}https://query1.finance.yahoo.com/v8/finance/chart/${quote.symbol}?range=3mo&interval=1d`;
+        const chartTargetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${quote.symbol}?range=3mo&interval=1d`;
         try {
-            const chartResponse = await fetch(chartUrl);
-            if (!chartResponse.ok) {
-                console.warn(`Could not fetch history for ${quote.symbol}`);
-                return { ...baseData, history: [] }; // Return with empty history on failure
+            const chartData = await fetchDataWithProxy(chartTargetUrl);
+            const closes = chartData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+            if (!closes) {
+                 console.warn(`Could not parse history for ${quote.symbol}`);
+                 return { ...baseData, history: [] };
             }
-            const chartData = await chartResponse.json();
-            const closes = chartData.chart.result[0].indicators.quote[0].close;
-            // Yahoo sometimes includes nulls for non-trading days, filter them out
+            
             const validCloses = closes.filter((p: number | null) => p !== null);
-
             const history = validCloses.map((c: number) => ({ close: c }));
 
             let stockWithHistory: StockData = { ...baseData, history };
             return calculateIndicators(stockWithHistory);
         } catch (e) {
             console.error(`Error fetching chart for ${quote.symbol}:`, e);
-            return { ...baseData, history: [] }; // Fallback
+            return { ...baseData, history: [] }; // Fallback with no history
         }
     });
 
@@ -76,13 +90,13 @@ export const fetchInitialStockData = async (): Promise<StockData[]> => {
 // Fetches only the latest quote for faster updates
 export const updateStockPrices = async (currentData: StockData[]): Promise<StockData[]> => {
     const symbolsString = SYMBOLS.join(',');
-    const quoteUrl = `${CORS_PROXY}https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsString}`;
+    const quoteTargetUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsString}`;
     
-    const response = await fetch(quoteUrl);
-    if (!response.ok) {
-        throw new Error(`Yahoo API (Update) Error: ${response.statusText}`);
+    const data = await fetchDataWithProxy(quoteTargetUrl);
+    if (!data.quoteResponse || !data.quoteResponse.result) {
+        console.error('Invalid data structure received on update.');
+        return currentData; // Return old data on failure
     }
-    const data = await response.json();
     const quotes = data.quoteResponse.result;
 
     return currentData.map(stock => {
@@ -91,8 +105,7 @@ export const updateStockPrices = async (currentData: StockData[]): Promise<Stock
 
         const newPrice = updatedQuote.regularMarketPrice || stock.price;
         
-        // Prepend new price to history for indicator calculation, keep history length manageable
-        const newHistory = [{ close: newPrice }, ...stock.history].slice(0, 50);
+        const newHistory = stock.history.length > 0 ? [{ close: newPrice }, ...stock.history].slice(0, 50) : [{ close: newPrice }];
 
         const updatedStock: StockData = {
             ...stock,
